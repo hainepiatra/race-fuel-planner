@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ultra Fuel Planner (Simple)</title>
+  <style>
+    :root { --w: 980px; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #0b0c10; color: #e7e7e7; }
+    header { padding: 28px 16px 10px; }
+    .wrap { max-width: var(--w); margin: 0 auto; }
+    h1 { font-size: 22px; margin: 0 0 6px; }
+    p { margin: 0 0 12px; color: #b9bcc6; line-height: 1.4; }
+    main { padding: 16px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .card { background: #12141b; border: 1px solid #22263a; border-radius: 14px; padding: 14px; box-shadow: 0 8px 28px rgba(0,0,0,.25); }
+    .card h2 { font-size: 14px; margin: 0 0 10px; letter-spacing: .04em; color: #d9dcff; text-transform: uppercase; }
+    label { display: block; font-size: 12px; color: #c7cad4; margin: 10px 0 6px; }
+    input[type="number"], input[type="range"] {
+      width: 100%; box-sizing: border-box; background: #0e1016; border: 1px solid #2a2f49; color: #e7e7e7;
+      padding: 10px 10px; border-radius: 10px; outline: none;
+    }
+    input[type="range"] { padding: 0; height: 36px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .muted { color: #b9bcc6; font-size: 12px; }
+    .big { font-size: 18px; margin: 4px 0 0; }
+    .kpi { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @media (min-width: 520px) { .kpi { grid-template-columns: 1fr 1fr; } }
+    .pill { background: #0e1016; border: 1px solid #2a2f49; border-radius: 12px; padding: 12px; }
+    .pill .t { font-size: 12px; color: #b9bcc6; }
+    .pill .v { font-size: 18px; margin-top: 4px; }
+    button {
+      background: #1f2aef; color: white; border: 0; padding: 10px 12px; border-radius: 12px; cursor: pointer;
+      font-weight: 600;
+    }
+    button.secondary { background: #23273a; border: 1px solid #2a2f49; }
+    .btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    pre {
+      white-space: pre-wrap; word-wrap: break-word; background: #0e1016; border: 1px solid #2a2f49; border-radius: 12px;
+      padding: 12px; margin: 10px 0 0; color: #e7e7e7; font-size: 13px; line-height: 1.35;
+    }
+    .warn { color: #ffd19a; font-size: 12px; margin-top: 10px; }
+    .ok { color: #9cffc4; font-size: 12px; margin-top: 10px; }
+    footer { padding: 10px 16px 26px; color: #8c90a0; font-size: 12px; }
+    a { color: #9aa7ff; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Ultra Fuel Planner (Simple)</h1>
+      <p>Pick your hourly targets. The planner outputs totals + a practical gel/drink split. (No accounts, no fluff.)</p>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap grid">
+      <section class="card">
+        <h2>Inputs</h2>
+
+        <label>Race duration (hours)</label>
+        <input id="hours" type="number" min="0.5" step="0.5" value="12" />
+
+        <div class="row">
+          <div>
+            <label>Carbs per hour (g/h)</label>
+            <input id="carbsPerHour" type="number" min="0" step="5" value="80" />
+          </div>
+          <div>
+            <label>Fluids per hour (ml/h)</label>
+            <input id="mlPerHour" type="number" min="0" step="50" value="750" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Sodium concentration (mg per liter)</label>
+            <input id="sodiumMgPerL" type="number" min="0" step="50" value="1500" />
+          </div>
+          <div>
+            <label>Gel carbs (g per gel)</label>
+            <input id="carbsPerGel" type="number" min="0" step="1" value="25" />
+          </div>
+        </div>
+
+        <label>Carb split: gels vs drink</label>
+        <input id="gelShare" type="range" min="0" max="100" value="60" />
+        <div class="muted">
+          <span id="gelShareLabel">60%</span> carbs from gels · <span id="drinkShareLabel">40%</span> carbs from drink
+        </div>
+
+        <div class="btns">
+          <button id="copyBtn" class="secondary" type="button">Copy plan</button>
+          <button id="resetBtn" class="secondary" type="button">Reset defaults</button>
+        </div>
+
+        <div id="note" class="warn" aria-live="polite"></div>
+      </section>
+
+      <section class="card">
+        <h2>Output</h2>
+
+        <div class="kpi">
+          <div class="pill">
+            <div class="t">Total carbs</div>
+            <div class="v" id="totalCarbs">—</div>
+          </div>
+          <div class="pill">
+            <div class="t">Total fluids</div>
+            <div class="v" id="totalFluids">—</div>
+          </div>
+          <div class="pill">
+            <div class="t">Total sodium</div>
+            <div class="v" id="totalSodium">—</div>
+          </div>
+          <div class="pill">
+            <div class="t">Gels needed</div>
+            <div class="v" id="gelsNeeded">—</div>
+          </div>
+        </div>
+
+        <pre id="planText">—</pre>
+        <div class="ok" id="okMsg"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      Formula is intentionally simple. Always test in training. If you have medical concerns (esp. sodium), consult a professional.
+    </div>
+  </footer>
+
+<script>
+  const el = (id) => document.getElementById(id);
+
+  const inputs = {
+    hours: el("hours"),
+    carbsPerHour: el("carbsPerHour"),
+    mlPerHour: el("mlPerHour"),
+    sodiumMgPerL: el("sodiumMgPerL"),
+    carbsPerGel: el("carbsPerGel"),
+    gelShare: el("gelShare"),
+  };
+
+  const out = {
+    gelShareLabel: el("gelShareLabel"),
+    drinkShareLabel: el("drinkShareLabel"),
+    totalCarbs: el("totalCarbs"),
+    totalFluids: el("totalFluids"),
+    totalSodium: el("totalSodium"),
+    gelsNeeded: el("gelsNeeded"),
+    planText: el("planText"),
+    note: el("note"),
+    okMsg: el("okMsg"),
+  };
+
+  const defaults = {
+    hours: 12,
+    carbsPerHour: 80,
+    mlPerHour: 750,
+    sodiumMgPerL: 1500,
+    carbsPerGel: 25,
+    gelShare: 60,
+  };
+
+  function n(v) {
+    const x = Number(v);
+    return Number.isFinite(x) ? x : 0;
+  }
+
+  function round1(x) { return Math.round(x * 10) / 10; }
+  function ceil(x) { return Math.ceil(x); }
+
+  function compute() {
+    out.note.textContent = "";
+    out.okMsg.textContent = "";
+
+    const hours = Math.max(0, n(inputs.hours.value));
+    const carbsPerHour = Math.max(0, n(inputs.carbsPerHour.value));
+    const mlPerHour = Math.max(0, n(inputs.mlPerHour.value));
+    const sodiumMgPerL = Math.max(0, n(inputs.sodiumMgPerL.value));
+    const carbsPerGel = Math.max(0.0001, n(inputs.carbsPerGel.value)); // avoid div by zero
+    const gelSharePct = Math.min(100, Math.max(0, n(inputs.gelShare.value)));
+
+    out.gelShareLabel.textContent = `${gelSharePct}%`;
+    out.drinkShareLabel.textContent = `${100 - gelSharePct}%`;
+
+    // Totals
+    const totalCarbs = hours * carbsPerHour;         // grams
+    const totalFluidsMl = hours * mlPerHour;         // ml
+    const totalFluidsL = totalFluidsMl / 1000;       // liters
+    const totalSodiumMg = totalFluidsL * sodiumMgPerL;
+
+    // Split carbs into gels vs drink
+    const gelShare = gelSharePct / 100;
+    const carbsFromGels = totalCarbs * gelShare;
+    const carbsFromDrink = totalCarbs - carbsFromGels;
+
+    const gelsNeeded = ceil(carbsFromGels / carbsPerGel);
+
+    // Drink concentration needed to carry remaining carbs (simple assumption: all drink volume can carry carbs)
+    const drinkCarbsPerL = totalFluidsL > 0 ? (carbsFromDrink / totalFluidsL) : 0;
+
+    // Per-hour breakdown (approx)
+    const gelsPerHour = hours > 0 ? (gelsNeeded / hours) : 0;
+    const gelCarbsPerHour = hours > 0 ? (carbsFromGels / hours) : 0;
+    const drinkCarbsPerHour = hours > 0 ? (carbsFromDrink / hours) : 0;
+
+    // Safety-ish nudges (not medical advice)
+    const warnings = [];
+    if (carbsPerHour > 100) warnings.push("Carbs/h is pretty high—make sure your gut tolerates it.");
+    if (mlPerHour > 1100) warnings.push("Fluids/h is high for many athletes—watch sloshing/hyponatremia risk.");
+    if (sodiumMgPerL > 2000) warnings.push("Sodium/L is high—double-check your plan and conditions.");
+    if (totalFluidsL === 0 && totalCarbs > 0 && gelSharePct < 100) warnings.push("You set 0 fluids but some carbs from drink—either raise fluids or set gel share to 100%.");
+
+    out.note.textContent = warnings.join(" ");
+
+    // KPIs
+    out.totalCarbs.textContent = `${Math.round(totalCarbs)} g`;
+    out.totalFluids.textContent = `${round1(totalFluidsL)} L`;
+    out.totalSodium.textContent = `${Math.round(totalSodiumMg)} mg`;
+    out.gelsNeeded.textContent = `${gelsNeeded} gels`;
+
+    // Plan text (simple + copyable)
+    const lines = [];
+    lines.push(`ULTRA FUEL PLAN (simple)`);
+    lines.push(`Duration: ${hours} h`);
+    lines.push(`Targets: ${carbsPerHour} g carbs/h · ${mlPerHour} ml fluids/h · ${sodiumMgPerL} mg sodium/L`);
+    lines.push(``);
+    lines.push(`TOTALS`);
+    lines.push(`- Carbs: ${Math.round(totalCarbs)} g`);
+    lines.push(`- Fluids: ${round1(totalFluidsL)} L`);
+    lines.push(`- Sodium: ${Math.round(totalSodiumMg)} mg`);
+    lines.push(``);
+    lines.push(`CARB SPLIT`);
+    lines.push(`- From gels (${gelSharePct}%): ${Math.round(carbsFromGels)} g → ${gelsNeeded} gels (≈ ${round1(gelsPerHour)} gels/h)`);
+    lines.push(`- From drink (${100 - gelSharePct}%): ${Math.round(carbsFromDrink)} g`);
+    lines.push(`  → Required drink concentration: ${round1(drinkCarbsPerL)} g carbs/L`);
+    lines.push(``);
+    lines.push(`PER HOUR (approx)`);
+    lines.push(`- Gels: ${round1(gelsPerHour)} gels/h (≈ ${Math.round(gelCarbsPerHour)} g carbs/h)`);
+    lines.push(`- Drink: ${round1(mlPerHour)} ml/h (≈ ${Math.round(drinkCarbsPerHour)} g carbs/h)`);
+    lines.push(`- Sodium: ${Math.round((mlPerHour/1000) * sodiumMgPerL)} mg/h`);
+    lines.push(``);
+    lines.push(`Notes: test this in training; adjust for heat, pace, and gut tolerance.`);
+
+    out.planText.textContent = lines.join("\n");
+
+    out.okMsg.textContent = warnings.length ? "" : "Looks internally consistent.";
+  }
+
+  function wire() {
+    Object.values(inputs).forEach((inp) => {
+      inp.addEventListener("input", compute);
+      inp.addEventListener("change", compute);
+    });
+
+    el("copyBtn").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(out.planText.textContent);
+        out.okMsg.textContent = "Copied to clipboard.";
+        setTimeout(() => { out.okMsg.textContent = ""; }, 1400);
+      } catch (e) {
+        out.note.textContent = "Could not copy automatically. Select the text and copy manually.";
+      }
+    });
+
+    el("resetBtn").addEventListener("click", () => {
+      inputs.hours.value = defaults.hours;
+      inputs.carbsPerHour.value = defaults.carbsPerHour;
+      inputs.mlPerHour.value = defaults.mlPerHour;
+      inputs.sodiumMgPerL.value = defaults.sodiumMgPerL;
+      inputs.carbsPerGel.value = defaults.carbsPerGel;
+      inputs.gelShare.value = defaults.gelShare;
+      compute();
+    });
+
+    compute();
+  }
+
+  wire();
+</script>
+</body>
+</html>
